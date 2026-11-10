@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>LifeSim 35 - Regia</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#0d1117;color:#e6edf3;font-family:system-ui,Segoe UI,Roboto,sans-serif}
+button,input{font:inherit}.hide{display:none!important}
+#start{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;padding:20px;text-align:center}
+#start h1{margin:0;font-size:28px}#start small{color:#8b949e}
+#start input{font-size:30px;width:220px;text-align:center;letter-spacing:6px;padding:10px;border-radius:10px;border:2px solid #30363d;background:#161b22;color:#fff}
+.btn{background:#238636;border:0;color:#fff;padding:12px 22px;border-radius:10px;font-weight:700;font-size:17px}
+.btn.g{background:#21262d;border:1px solid #30363d;font-size:14px;padding:7px 12px;font-weight:600}
+#app{display:flex;flex-direction:column;height:100%}
+header{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#161b22;border-bottom:1px solid #30363d;flex-wrap:wrap}
+header b{font-size:18px}.sp{flex:1}
+.bd{padding:3px 10px;border-radius:99px;font-size:13px;background:#3b1d1d;color:#ff7b72}.bd.on{background:#12361f;color:#56d364}
+main{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;min-height:0}
+@media(max-width:800px){main{grid-template-columns:1fr;overflow:auto;display:block}main>section{margin-bottom:10px;max-height:none}}
+section{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+section h2{margin:0 0 8px;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:#8b949e;display:flex;align-items:center;gap:8px}
+.col{display:flex;flex-direction:column;gap:10px;min-height:0}
+.scroll{overflow:auto;flex:1;min-height:0}
+#vit{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.t{background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:8px}.t i{font-style:normal;font-size:12px;color:#8b949e;display:block}.t b{font-size:26px}.t.off b{color:#6e7681;font-size:16px}
+.t.rh{grid-column:1/-1}.t.rh b{font-size:22px;color:#ffa657}
+#ctitle{font-size:20px;font-weight:700}#cdesc{color:#c9d1d9;white-space:pre-wrap;margin:6px 0}
+.steps{list-style:none;margin:6px 0;padding:0}.steps li{padding:6px 8px;border-radius:8px;border:1px solid transparent;color:#8b949e}
+.steps li.done{color:#56d364}.steps li.done::before{content:"✓ "}.steps li.cur{background:#1f2a3a;border-color:#388bfd;color:#fff;font-weight:700}.steps li.cur::before{content:"▶ "}
+#stdesc{background:#1f2a3a;border-left:4px solid #388bfd;padding:8px 10px;border-radius:6px;white-space:pre-wrap;margin:6px 0}
+#stat{color:#ffa657;font-size:14px;margin-top:4px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chip{padding:4px 10px;border-radius:99px;border:1px solid #30363d;background:#0d1117;color:#8b949e;font-size:13px}.chip.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
+#log{font-size:14px}.l{display:flex;gap:8px;padding:4px 2px;border-bottom:1px solid #21262d}.l time{color:#8b949e;font-variant-numeric:tabular-nums;white-space:nowrap}
+.l.defi{color:#ffa657}.l.alarm{color:#ff7b72;font-weight:600}.l.ctl{color:#79c0ff}.l.sc{color:#d2a8ff}.l.mon{color:#e6edf3}
+.empty{color:#6e7681;text-align:center;padding:16px}
+</style></head><body>
+<div id="start">
+<h1>LifeSim 35 · Regia</h1><small>Inserisci il codice mostrato sul monitor</small>
+<input id="cd" inputmode="numeric" maxlength="8" placeholder="codice" autocomplete="off">
+<button class="btn" id="go">COLLEGA</button><small id="err"></small><small>SimTeam Orbetello</small>
+</div>
+<div id="app" class="hide">
+<header><b>🎬 Regia</b><span class="bd" id="bM">monitor</span><span class="bd" id="bC">telecomando</span><span id="elapsed" style="color:#8b949e;font-size:13px"></span><span class="sp"></span><span id="cdl" style="color:#8b949e;font-size:13px"></span><button class="btn g" id="out">Esci</button></header>
+<main>
+<div class="col">
+<section style="flex:0 0 auto"><h2>Parametri sul monitor</h2><div id="vit"></div></section>
+<section style="flex:1"><h2>Caso / Scenario</h2><div class="scroll" id="sbox"><div class="empty">Nessuno scenario in corso</div></div></section>
+</div>
+<section><h2>Log del monitor <span class="sp"></span><button class="btn g" id="cp">Copia</button><button class="btn g" id="dl">Scarica .txt</button></h2>
+<div class="chips" id="chips"></div><div class="scroll" id="log"></div></section>
+</main></div>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let peer,conn,code,off=0,rt=null,want=false;
+let wl=null,wlOn=false,nv=null;
+function mkVideo(){if(nv)return;nv=document.createElement('video');nv.setAttribute('playsinline','');nv.setAttribute('muted','');nv.muted=true;nv.loop=true;
+  nv.style.cssText='position:fixed;left:0;top:0;width:2px;height:2px;opacity:.02;pointer-events:none;z-index:-1';
+  nv.innerHTML='<source src="data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwEAAAAAAALCEU2bdLpNu4tTq4QVSalmU6yBoU27i1OrhBZUrmtTrIHYTbuMU6uEElTDZ1OsggEeTbuMU6uEHFO7a1OsggKs7AEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmsirXsYMPQkBNgI1MYXZmNjAuMTYuMTAwV0GNTGF2ZjYwLjE2LjEwMESJiECPQAAAAAAAFlSua8GuAQAAAAAAADjXgQFzxYistJrFP/QSgJyBACK1nIN1bmSIgQCGhVZfVlA4g4EBI+ODhAX14QDgibCBQLqBQJqBAhJUw2f8c3OgY8CAZ8iaRaOHRU5DT0RFUkSHjUxhdmY2MC4xNi4xMDBzc9ZjwItjxYistJrFP/QSgGfIoUWjh0VOQ09ERVJEh5RMYXZjNjAuMzEuMTAyIGxpYnZweGfIoUWjiERVUkFUSU9ORIeTMDA6MDA6MDEuMDAwMDAwMDAwAB9DtnVBB+eBAKOqgQAAgPACAJ0BKkAAQAAARwiFhYiFhIgCAgAGcDxCYAqyIPcwAP7/q1CAo5aBAGQA0QEAARAQABgAGFgv9AAIjoAAo5aBAMgA0QEAARAQABgAGFgv9AAIjoAAo5aBASwA0QEAARAQABgAGFgv9AAIjoAAo5aBAZAA0QEAARAQABgAGFgv9AAIjoAAo5aBAfQA0QEAARAQABgAGFgv9AAIjoAAo5aBAlgA0QEAARAQABgAGFgv9AAIjoAAo5aBArwA0QEAARAQFGAAYWC/0AAiOgAAo5aBAyAA0QEAARAQABgAGFgv9AAIjoAAo5aBA4QA0QEAARAQABgAGFgv9AAIjoAAHFO7a5G7j7OBALeK94EB8YIBn/CBAw==" type="video/webm"><source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAOwbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAtp0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAEAAAABAAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAIAAABAAAAAAJSbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAoAAAAKABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAAB/W1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAb1zdGJsAAAAvXN0c2QAAAAAAAAAAQAAAK1hdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAEAAQABIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAM2F2Y0MBZAAK/+EAGGdkAAqs2UQmwEQAAAMABAAAAwBQPEiWWAEABGjvj8v9+PgAAAAAEHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAAGnAAABpwAAAAGHN0dHMAAAAAAAAAAQAAAAoAAAQAAAAAFHN0c3MAAAAAAAAAAQAAAAEAAABgY3R0cwAAAAAAAAAKAAAAAQAACAAAAAABAAAUAAAAAAEAAAgAAAAAAQAAAAAAAAABAAAEAAAAAAEAABQAAAAAAQAACAAAAAABAAAAAAAAAAEAAAQAAAAAAQAACAAAAAAcc3RzYwAAAAAAAAABAAAAAQAAAAoAAAABAAAAPHN0c3oAAAAAAAAAAAAAAAoAAALYAAAADgAAAAwAAAAMAAAADAAAAA8AAAAOAAAADAAAAAwAAAAPAAAAFHN0Y28AAAAAAAAAAQAAA+AAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYwLjE2LjEwMAAAAAhmcmVlAAADVm1kYXQAAAKrBgX//6fcRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY0IHIzMTA4IDMxZTE5ZjkgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDIzIC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MSByZWY9MSBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgzOjB4MyBtZT1oZXggc3VibWU9MiBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0wIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MCA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0wIHRocmVhZHM9MiBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTMgYl9weXJhbWlkPTIgYl9hZGFwdD0xIGJfYmlhcz0wIGRpcmVjdD0xIHdlaWdodGI9MSBvcGVuX2dvcD0wIHdlaWdodHA9MSBrZXlpbnQ9MjUwIGtleWludF9taW49MTAgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD0xMCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAAlZYiEABH/4n8F3v7vuThbn/73ox1ajKbrq5Pi71uSw6s6JJGSOQAAAApBmiQYgh/+qlfeAAAACEGeQkId/wW9AAAACAGeYUQ3/wd8AAAACAGeY0Q3/wd9AAAAC0GaaDRMQ7/+qZ01AAAACkGehkURLDv/Bb0AAAAIAZ6lRDf/B30AAAAIAZ6nRDf/B3wAAAALQZqpNExDf/6nj4g=" type="video/mp4">';document.body.appendChild(nv)}
+async function keepAwake(){wlOn=true;
+  try{if('wakeLock' in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}
+  try{mkVideo();if(nv.paused)await nv.play()}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(wlOn&&document.visibilityState=='visible')keepAwake()});
+document.addEventListener('pointerdown',()=>{if(wlOn&&(!wl||(nv&&nv.paused)))keepAwake()});
+const RH={sinus:'Ritmo sinusale',af:'Fibrillazione atriale',bav1:'BAV 1°',bav2a:'BAV 2° Mobitz I',bav2b:'BAV 2° Mobitz II',bav3:'BAV 3°',vt:'Tachicardia ventricolare',pvt:'TV senza polso',tdp:'Torsione di punta',vf:'Fibrillazione ventricolare',pea:'PEA',asy:'Asistolia'};
+const FILT={defi:1,alarm:1,ctl:1,sc:1,mon:1};let LOG=[],SCN=null,STEP=-1,DONE={},ST={},T0=null,CT=null,statusTxt='';
+function cat(m){if(/shock|defibril|carica|analisi|cardiover|pacing|erogat/i.test(m))return'defi';if(/allarm|alarm|asistol|fibrillazione ventr|senza polso|FV|limite/i.test(m))return'alarm';if(/^Telecomando:|telecomando/i.test(m))return'ctl';if(/scenario|passo/i.test(m))return'sc';return'mon'}
+function hhmm(ts){const d=new Date(ts-off);return d.toLocaleTimeString('it-IT')}
+function addLog(m,ts,c){LOG.push({m,ts:ts||Date.now()+off,c:c||cat(m)});if(LOG.length>800)LOG.shift();if(!T0)T0=LOG[0].ts;drawLog()}
+function drawLog(){const e=$('log');const on=Object.keys(FILT).filter(k=>FILT[k]);
+ const it=LOG.filter(x=>FILT[x.c]).slice().reverse();
+ e.innerHTML=it.length?it.map(x=>'<div class="l '+x.c+'"><time>'+hhmm(x.ts)+'</time><span>'+esc(x.m)+'</span></div>').join(''):'<div class="empty">Nessun evento</div>'}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+const CH={defi:'Defibrillatore',alarm:'Allarmi',ctl:'Telecomando',sc:'Scenario',mon:'Monitor'};
+$('chips').innerHTML=Object.keys(CH).map(k=>'<span class="chip on" data-k="'+k+'">'+CH[k]+'</span>').join('');
+$('chips').onclick=e=>{const k=e.target.dataset.k;if(!k)return;FILT[k]=!FILT[k];e.target.classList.toggle('on',FILT[k]);drawLog()};
+function vit(){const s=ST;if(!s||s.rhy===undefined){$('vit').innerHTML='<div class="empty" style="grid-column:1/-1">In attesa dei dati…</div>';return}
+ const t=(l,v,u,off)=>'<div class="t'+(off?' off':'')+'"><i>'+l+'</i><b>'+(off?'non collegato':v)+'</b>'+(off?'':' <small>'+u+'</small>')+'</div>';
+ const ecgOff=s.showEcg===false,spOff=s.showSpo2===false;
+ $('vit').innerHTML='<div class="t rh"><i>Ritmo</i><b>'+(RH[s.rhy]||s.rhy)+'</b></div>'+
+ t('FC',s.hr,'bpm',ecgOff)+t('PA',s.sys+'/'+s.dia,'mmHg',s.showNibp===false)+t('SpO₂',s.spo2,'%',spOff)+t('FR',s.rr!=null?s.rr:'-','/min',s.showCo2===false)+t('EtCO₂',s.co2!=null?s.co2:(s.etco2!=null?s.etco2:'-'),'mmHg',s.showCo2===false)+(s.temp!=null?t('Temp',s.temp,'°C',s.showTemp===false):'')}
+function scDraw(){const b=$('sbox');if(!SCN){b.innerHTML='<div class="empty">Nessuno scenario in corso</div>';return}
+ const S=SCN;b.innerHTML='<div id="ctitle">'+esc(S.title||'Scenario')+'</div>'+(S.desc?'<div id="cdesc">'+esc(S.desc)+'</div>':'')+
+ '<ul class="steps">'+S.steps.map((x,i)=>'<li class="'+(STEP==i?'cur':(DONE[i]||(STEP>i)?'done':''))+'">'+esc(x.name||('Passo '+(i+1)))+'</li>').join('')+'</ul>'+
+ (STEP>=0&&S.steps[STEP]&&S.steps[STEP].desc?'<div id="stdesc">'+esc(S.steps[STEP].desc)+'</div>':'')+(S.end?'<div id="stdesc" style="border-color:#d2a8ff">'+esc(S.end)+'</div>':'')+'<div id="stat">'+esc(statusTxt)+'</div>'}
+function tick(){if(T0)$('elapsed').textContent='⏱ '+fmt((Date.now()+off-T0)/1000)}
+function fmt(s){s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+setInterval(tick,1000);
+function peers(d){$('bM').className='bd'+(conn&&conn.open?' on':'');$('bC').className='bd'+(d&&d.ctl?' on':'');}
+function handle(d){
+ if(d.now)off=d.now-Date.now();
+ if(d.t=='hist'){LOG=[];T0=null;d.items.forEach(x=>{LOG.push({m:x.m,ts:x.ts,c:cat(x.m)})});if(LOG.length)T0=LOG[0].ts;drawLog()}
+ else if(d.t=='ev'){addLog(d.m,d.ts)}
+ else if(d.t=='state'){Object.assign(ST,d.s);vit()}
+ else if(d.t=='auto'){Object.assign(ST,d.s);vit()}
+ else if(d.t=='peers'){peers(d)}
+ else if(d.t=='sc'){
+  if(d.ev=='start'){SCN={title:d.title,desc:d.desc,steps:d.steps||[]};STEP=-1;DONE={};statusTxt='';addLog('Scenario avviato: '+d.title,d.ts,'sc');scDraw()}
+  else if(d.ev=='step'){if(STEP>=0)DONE[STEP]=1;STEP=d.idx;if(SCN&&SCN.steps[d.idx]&&!SCN.steps[d.idx].desc)SCN.steps[d.idx].desc=d.desc;addLog('Passo '+(d.idx+1)+'/'+d.n+': '+d.name+(d.cause?' ('+d.cause+')':''),d.ts,'sc');scDraw()}
+  else if(d.ev=='end'){if(SCN){SCN.end=d.msg;STEP=-2;SCN.steps.forEach((_,i)=>DONE[i]=1)}addLog(d.msg||'Scenario terminato',d.ts,'sc');statusTxt='';scDraw()}
+  else if(d.ev=='status'){statusTxt=d.text||'';const e=$('stat');if(e)e.textContent=statusTxt}}}
+function connect(){
+ if(peer)try{peer.destroy()}catch(e){}
+ $('err').textContent='';peer=new Peer();
+ peer.on('open',()=>{conn=peer.connect('lp35sim-'+code,{reliable:true});
+  conn.on('open',()=>{conn.send({t:'hello',role:'reg'});$('start').classList.add('hide');$('app').classList.remove('hide');$('cdl').textContent='Codice '+code;peers();keepAwake();try{localStorage.setItem('reg_code',code)}catch(e){}});
+  conn.on('data',handle);
+  conn.on('close',()=>{peers();$('bC').className='bd';retry()});conn.on('error',()=>{});
+  setTimeout(()=>{if(!conn.open){$('err').textContent='Monitor non trovato: controlla il codice';retry()}},9000)});
+ peer.on('error',e=>{$('err').textContent='Errore rete: '+e.type;retry()});peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}})}
+function retry(){if(!want||rt)return;rt=setTimeout(()=>{rt=null;if(want&&!(conn&&conn.open))connect()},4000)}
+$('go').onclick=()=>{code=$('cd').value.trim();if(!code){$('err').textContent='Inserisci il codice';return}want=true;$('err').textContent='Collegamento…';connect();keepAwake()};
+$('out').onclick=()=>{want=false;try{peer.destroy()}catch(e){}$('app').classList.add('hide');$('start').classList.remove('hide');$('err').textContent=''};
+function txt(){return 'LifeSim 35 - Log regia\n'+(SCN?'Scenario: '+SCN.title+'\n':'')+'\n'+LOG.map(x=>hhmm(x.ts)+'  '+x.m).join('\n')}
+$('cp').onclick=()=>{try{navigator.clipboard.writeText(txt());$('cp').textContent='Copiato ✓'}catch(e){$('cp').textContent='Non riuscito'}setTimeout(()=>$('cp').textContent='Copia',1500)};
+$('dl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt()],{type:'text/plain'}));a.download='log-regia.txt';document.body.appendChild(a);a.click();a.remove()};
+try{const c=localStorage.getItem('reg_code');if(c)$('cd').value=c}catch(e){}
+$('cd').addEventListener('keydown',e=>{if(e.key=='Enter')$('go').click()});
+vit();drawLog();
+</script></body></html>
