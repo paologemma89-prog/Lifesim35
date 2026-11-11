@@ -30,7 +30,7 @@ section h2{margin:0 0 8px;font-size:14px;letter-spacing:.08em;text-transform:upp
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .chip{padding:4px 10px;border-radius:99px;border:1px solid #30363d;background:#0d1117;color:#8b949e;font-size:13px}.chip.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
 #log{font-size:14px}.l{display:flex;gap:8px;padding:4px 2px;border-bottom:1px solid #21262d}.l time{color:#8b949e;font-variant-numeric:tabular-nums;white-space:nowrap}
-.l.defi{color:#ffa657}.l.alarm{color:#ff7b72;font-weight:600}.l.ctl{color:#79c0ff}.l.sc{color:#d2a8ff}.l.mon{color:#e6edf3}
+.l.defi{color:#ffa657}.l.alarm{color:#ff7b72;font-weight:600}.l.ctl{color:#79c0ff}.l.sc{color:#d2a8ff}.l.eco{color:#7ee0c0}.l.mon{color:#e6edf3}
 .empty{color:#6e7681;text-align:center;padding:16px}
 </style></head><body>
 <div id="start">
@@ -62,15 +62,15 @@ async function keepAwake(){wlOn=true;
 document.addEventListener('visibilitychange',()=>{if(wlOn&&document.visibilityState=='visible')keepAwake()});
 document.addEventListener('pointerdown',()=>{if(wlOn&&(!wl||(nv&&nv.paused)))keepAwake()});
 const RH={sinus:'Ritmo sinusale',af:'Fibrillazione atriale',bav1:'BAV 1°',bav2a:'BAV 2° Mobitz I',bav2b:'BAV 2° Mobitz II',bav3:'BAV 3°',vt:'Tachicardia ventricolare',pvt:'TV senza polso',tdp:'Torsione di punta',vf:'Fibrillazione ventricolare',pea:'PEA',asy:'Asistolia'};
-const FILT={defi:1,alarm:1,ctl:1,sc:1,mon:1};let LOG=[],SCN=null,STEP=-1,DONE={},ST={},T0=null,CT=null,statusTxt='';
-function cat(m){if(/shock|defibril|carica|analisi|cardiover|pacing|erogat/i.test(m))return'defi';if(/allarm|alarm|asistol|fibrillazione ventr|senza polso|FV|limite/i.test(m))return'alarm';if(/^Telecomando:|telecomando/i.test(m))return'ctl';if(/scenario|passo/i.test(m))return'sc';return'mon'}
+const FILT={defi:1,alarm:1,ctl:1,sc:1,eco:1,mon:1};let LOG=[],SCN=null,STEP=-1,DONE={},ST={},T0=null,CT=null,statusTxt='';
+function cat(m){if(/E-FAST|sonda/i.test(m))return'eco';if(/shock|defibril|carica|analisi|cardiover|pacing|erogat/i.test(m))return'defi';if(/allarm|alarm|asistol|fibrillazione ventr|senza polso|FV|limite/i.test(m))return'alarm';if(/^Telecomando:|telecomando/i.test(m))return'ctl';if(/scenario|passo/i.test(m))return'sc';return'mon'}
 function hhmm(ts){const d=new Date(ts-off);return d.toLocaleTimeString('it-IT')}
 function addLog(m,ts,c){LOG.push({m,ts:ts||Date.now()+off,c:c||cat(m)});if(LOG.length>800)LOG.shift();if(!T0)T0=LOG[0].ts;drawLog()}
 function drawLog(){const e=$('log');const on=Object.keys(FILT).filter(k=>FILT[k]);
  const it=LOG.filter(x=>FILT[x.c]).slice().reverse();
  e.innerHTML=it.length?it.map(x=>'<div class="l '+x.c+'"><time>'+hhmm(x.ts)+'</time><span>'+esc(x.m)+'</span></div>').join(''):'<div class="empty">Nessun evento</div>'}
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
-const CH={defi:'Defibrillatore',alarm:'Allarmi',ctl:'Telecomando',sc:'Scenario',mon:'Monitor'};
+const CH={defi:'Defibrillatore',alarm:'Allarmi',ctl:'Telecomando',sc:'Scenario',eco:'Ecografia',mon:'Monitor'};
 $('chips').innerHTML=Object.keys(CH).map(k=>'<span class="chip on" data-k="'+k+'">'+CH[k]+'</span>').join('');
 $('chips').onclick=e=>{const k=e.target.dataset.k;if(!k)return;FILT[k]=!FILT[k];e.target.classList.toggle('on',FILT[k]);drawLog()};
 function vit(){const s=ST;if(!s||s.rhy===undefined){$('vit').innerHTML='<div class="empty" style="grid-column:1/-1">In attesa dei dati…</div>';return}
